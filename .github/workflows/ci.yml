@@ -1,0 +1,58 @@
+name: Chat Server Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+
+    - name: Build server and client
+      run: |
+        cargo build --bin server
+        cargo build --bin client
+
+    - name: Set log level
+      run: export RUST_LOG=info
+
+    - name: Run server
+      run: cargo run --bin server 0.0.0.00:12345 &
+      
+    - name: Wait for server to start
+      run: sleep 5
+
+    - name: Run client and send test message
+      run: |
+        cargo run --bin client 127.0.0.1:12345 TestUser > client_log.txt 2>&1 &
+        sleep 5  # Give some time for the message to be sent and processed
+
+    - name: Check client logs
+      run: |
+        if grep -q "Welcome to the chat, TestUser!" client_log.txt; then
+          echo "client connected to server"
+        else
+          echo "client did not connect to server"
+          cat client_log.txt
+          exit 1
+        fi
+
+    - name: Check for failures
+      run: |
+        if [ $? -ne 0 ]; then
+          echo "Client or server exited with a failure"
+          exit 1
+        else
+          echo "Client and server ran successfully"
+        fi
