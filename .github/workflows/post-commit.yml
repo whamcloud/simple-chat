@@ -1,0 +1,45 @@
+name: Post-Commit Workflow
+
+# This workflow runs when code is pushed to the repository
+on:
+  push:
+    branches:
+      - main  # You can specify other branches here
+
+jobs:
+  build-and-check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Run tests
+      run: cargo test
+
+    - name: Build the project
+      run: cargo build --release
+      
+    - name: Run chat server
+      run: nohup cargo run --bin server 8080 > server.log 2>&1 &
+
+    - name: Wait for server to start
+      run: sleep 15
+    
+    - name: Run chat client
+      run: nohup cargo run --bin client 127.0.0.1 8080 GithubActionUser > client.log 2>&1 &
+
+    - name: Wait for server to respond
+      run: sleep 15
+
+    - name: Stop client gracefully
+      run: pkill -SIGINT client
+
+    - name: Stop server gracefully
+      run: pkill -SIGINT server
+    
+    - name: Show server log
+      run: cat server.log
+
+    - name: Show client log
+      run: cat client.log

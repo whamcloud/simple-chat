@@ -1,0 +1,23 @@
+#!/bin/sh
+
+# Run rustfmt to check and format the code
+echo "Running rustfmt..."
+cargo fmt
+
+# Run cargo build to ensure the project compiles without errors
+echo "Checking if the project compiles..."
+cargo build
+if [ $? -ne 0 ]; then
+  echo "Build failed. Please fix the compilation errors."
+  exit 1
+fi
+
+# Run Clippy to check for lint errors
+echo "Running Clippy..."
+cargo clippy -- -D warnings
+if [ $? -ne 0 ]; then
+  echo "Clippy found issues. Please fix them before committing."
+  exit 1
+fi
+
+echo "All checks passed. Proceeding with the commit."
