@@ -6,8 +6,10 @@ I am very new to Rust, and my knowledge of advanced concepts like Smart Pointers
 
 If you're interested, feel free to check out my other repository, which I implemented over time as I continue learning Rust. Follow this [link](https://github.com/Palash90/iron_learn) to take a look!
 
-This is pretty much the basic implementation of the idea of Distributed File System I discussed during interview. It is in Java, so, if interested can take a look - [Dist-FS](https://github.com/Palash90/dist-fs) 
+This is pretty much the basic implementation of the idea of Distributed File System I discussed during interview. It is in Java, so, if interested can take a look - [Dist-FS](https://github.com/Palash90/dist-fs) and it's corresponding client library - [Dist-FS Client](
+https://github.com/Palash90/dist-fs-client).
 
+Hope you like these projects.
 ## Video Demonstration
 [![Rust Simple Chat](https://i9.ytimg.com/vi_webp/241s5jh8eFM/mq2.webp?sqp=CLyk5bgG-oaymwEmCMACELQB8quKqQMa8AEB-AH-CYAC0AWKAgwIABABGGUgUSg9MA8=&rs=AOn4CLC3PWVqy3MzVHQp1bD3QsVf3reruA)](https://youtu.be/241s5jh8eFM)
 
