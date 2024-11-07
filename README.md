@@ -69,3 +69,17 @@ without error, and is free of clippy errors.
 send a message to the server from the client. Make sure that niether the server
 or client exit with a failure. This action should be run anytime new code
 is pushed to a branch or landed on the main branch.
+
+## Start a server
+`cargo run -p server -- --ip 127.0.0.1 --port 8090`
+
+## Start a client
+`cargo run -p cli-client -- --host 127.0.0.1 --port 8090 --username <username>`
+or
+`SIMPLE_CHAT_SERVER_HOST=127.0.0.1 SIMPLE_CHAT_SERVER_PORT=8090 cargo run -p cli-client -- --username <username>`
+
+## Run tests
+`cargo test`
+
+## Demo video
+https://github.com/user-attachments/assets/a4c163e2-d29b-40ab-97e2-037e86164486

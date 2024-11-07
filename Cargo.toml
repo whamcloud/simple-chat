@@ -1,0 +1,9 @@
+[workspace]
+resolver = "2"
+
+members = [ 
+    "server",
+    "cli-client",
+    "common",
+    "integration_tests"
+]
