@@ -1,0 +1,28 @@
+[package]
+name = "chat_app"
+version = "0.1.0"
+edition = "2021"
+
+#[package.metadata.release]
+#release = false
+
+[profile.release]
+debug = true
+
+[target.x86_64-unknown-linux-gnu]
+linker = "/usr/bin/clang"
+rustflags = ["-Clink-arg=-fuse-ld=lld", "-Clink-arg=-Wl,--no-rosegment"]
+
+[dependencies]
+futures-util = { version = "0.3.30", features = ["sink"] }
+http = "1.1.0"
+#futures-util = "0.3"
+tokio = { version = "1.40.0", features = ["full"] }
+tokio-websockets = { version = "0.8.0", features = ["client", "fastrand", "server", "sha1_smol"] }
+structopt = { version = "0.3", default-features = false }
+futures = "0.3.30"
+diesel = { version = "2.2.8", features = ["postgres", "mysql"] }
+dotenvy = "0.15.7"
+actix-web = "4.5.1"
+serde = {version = "1.0.27", features = ["derive"] }
+serde_json = "1.0.9"
