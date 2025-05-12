@@ -69,3 +69,48 @@ without error, and is free of clippy errors.
 send a message to the server from the client. Make sure that niether the server
 or client exit with a failure. This action should be run anytime new code
 is pushed to a branch or landed on the main branch.
+
+### Demo
+![Demo](assets/example-server-clients.gif)
+
+## Getting Started
+
+### 1. Install Git Pre-Commit Hook
+
+To ensure all code is formatted, compiles correctly, and passes Clippy checks before committing, run the following script once after cloning the repository:
+
+```bash
+bash scripts/install-hooks.sh
+```
+### 2. Install Protocol Buffers (protoc)
+This project uses Protocol Buffers (Protobuf) for serializing structured data. In order to compile .proto files, you need to have the protoc compiler installed.
+
+Follow the instructions for your operating system here:
+https://protobuf.dev/installation/
+
+Make sure protoc is available in your PATH:
+```bash
+protoc --version
+```
+Should output something like: libprotoc 3.21.12
+
+Note: Some components of this project might auto-generate code from .proto files during the build process. Ensure protoc is installed and accessible before building or running the project.
+
+### 3. Run Server
+```bash
+cargo run --bin server
+```
+
+### 4. Run Client
+```bash
+cargo run --bin chat-client -- --server-addr 127.0.0.1:4433 --server-name localhost --name test-client
+```
+
+### 4. Run Tests
+```bash
+cargo run --bin server
+```
+In other terminal
+```bash
+cargo test
+```
