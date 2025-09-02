@@ -1,0 +1,268 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # Code formatting check
+  format:
+    name: Code Formatting Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Check code formatting
+        run: cargo fmt --all -- --check
+
+  # Linting with clippy
+  lint:
+    name: Linting (Clippy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: clippy-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run clippy lints
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+  # Unit and integration tests
+  test:
+    name: Unit and Integration Tests
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        rust-version: [stable]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust-version }}
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: test-${{ runner.os }}-${{ matrix.rust-version }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run unit tests
+        run: cargo test --lib
+        timeout-minutes: 10
+
+      - name: Run integration tests
+        run: cargo test --tests
+        timeout-minutes: 15
+        env:
+          RUST_LOG: info
+
+      - name: Test binary compilation
+        run: |
+          cargo build --bin server --release
+          cargo build --bin client --release
+
+  # End-to-end integration test
+  e2e:
+    name: End-to-End Integration Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [format, lint]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: e2e-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build binaries
+        run: |
+          cargo build --bin server --release
+          cargo build --bin client --release
+        timeout-minutes: 10
+
+      - name: Run end-to-end test
+        timeout-minutes: 5
+        run: |
+          set -e  # Exit on any error
+          
+          echo "🚀 Starting end-to-end integration test..."
+          
+          # Start server in background
+          echo "📡 Starting chat server..."
+          timeout 300s ./target/release/server --host 127.0.0.1 --port 8080 &
+          SERVER_PID=$!
+          echo "Server started with PID: $SERVER_PID"
+          
+          # Wait for server to start up
+          echo "⏳ Waiting for server startup..."
+          sleep 3
+          
+          # Function to cleanup server
+          cleanup() {
+            echo "🧹 Cleaning up server process..."
+            if kill -0 $SERVER_PID 2>/dev/null; then
+              kill $SERVER_PID 2>/dev/null || true
+              sleep 2
+              if kill -0 $SERVER_PID 2>/dev/null; then
+                kill -9 $SERVER_PID 2>/dev/null || true
+              fi
+            fi
+          }
+          
+          # Set trap for cleanup
+          trap cleanup EXIT
+          
+          # Test 1: Basic client connection and message sending
+          echo "👤 Testing client connection and message sending..."
+          timeout 30s bash -c '
+            echo "send Hello from CI test!" | ./target/release/client --username ci_user --host 127.0.0.1 --port 8080 || exit 1
+          ' &
+          CLIENT_PID=$!
+          
+          # Wait for client with timeout
+          if ! wait $CLIENT_PID; then
+            echo "❌ Client test failed or timed out"
+            exit 1
+          fi
+          
+          echo "✅ Client connection and message test passed"
+          
+          # Test 2: Multiple clients test
+          echo "👥 Testing multiple clients..."
+          timeout 30s bash -c '
+            echo "send Message from user1" | ./target/release/client --username user1 --host 127.0.0.1 --port 8080 &
+            CLIENT1_PID=$!
+            
+            sleep 1
+            
+            echo "send Message from user2" | ./target/release/client --username user2 --host 127.0.0.1 --port 8080 &
+            CLIENT2_PID=$!
+            
+            wait $CLIENT1_PID && wait $CLIENT2_PID
+          ' || {
+            echo "❌ Multiple clients test failed"
+            exit 1
+          }
+          
+          echo "✅ Multiple clients test passed"
+          
+          # Test 3: Server responsiveness check
+          echo "🔍 Checking server responsiveness..."
+          if ! kill -0 $SERVER_PID 2>/dev/null; then
+            echo "❌ Server process died unexpectedly"
+            exit 1
+          fi
+          
+          # Test connection to server is still possible
+          timeout 10s bash -c '
+            echo "send Final test message" | ./target/release/client --username final_user --host 127.0.0.1 --port 8080
+          ' || {
+            echo "❌ Server responsiveness test failed"
+            exit 1
+          }
+          
+          echo "✅ Server responsiveness test passed"
+          echo "🎉 All end-to-end tests completed successfully!"
+
+  # Build verification on all platforms
+  build-check:
+    name: Build Verification
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: build-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build all binaries (debug)
+        run: cargo build --all-targets
+
+      - name: Build all binaries (release)
+        run: cargo build --all-targets --release
+
+      - name: Verify binary functionality (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          ./target/release/server --help
+          ./target/release/client --help
+
+      - name: Verify binary functionality (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          ./target/release/server.exe --help
+          ./target/release/client.exe --help
+
+  # Summary job that depends on all others
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs: [format, lint, test, e2e, build-check]
+    if: always()
+    steps:
+      - name: Check all jobs
+        run: |
+          if [[ "${{ needs.format.result }}" != "success" ]]; then
+            echo "❌ Format job failed"
+            exit 1
+          fi
+          if [[ "${{ needs.lint.result }}" != "success" ]]; then
+            echo "❌ Lint job failed"
+            exit 1
+          fi
+          if [[ "${{ needs.test.result }}" != "success" ]]; then
+            echo "❌ Test job failed"
+            exit 1
+          fi
+          if [[ "${{ needs.e2e.result }}" != "success" ]]; then
+            echo "❌ E2E job failed"
+            exit 1
+          fi
+          if [[ "${{ needs.build-check.result }}" != "success" ]]; then
+            echo "❌ Build check job failed"
+            exit 1
+          fi
+          echo "✅ All CI jobs passed successfully!"
