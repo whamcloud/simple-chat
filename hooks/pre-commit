@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# Pre-commit hook to ensure code is formatted, compiles, and passes clippy
+
+set -e
+
+echo "Running pre-commit checks..."
+
+# Check if cargo is available
+if ! command -v cargo &> /dev/null; then
+    echo "Error: cargo is not installed or not in PATH"
+    exit 1
+fi
+
+# Format code
+echo "Formatting code with rustfmt..."
+cargo fmt --all -- --check
+if [ $? -ne 0 ]; then
+    echo "Error: Code is not formatted. Run 'cargo fmt' to fix."
+    exit 1
+fi
+
+# Check compilation
+echo "Checking compilation..."
+cargo check --all-targets
+if [ $? -ne 0 ]; then
+    echo "Error: Code does not compile."
+    exit 1
+fi
+
+# Run clippy
+echo "Running clippy..."
+cargo clippy --all-targets -- -D warnings
+if [ $? -ne 0 ]; then
+    echo "Error: Clippy found issues."
+    exit 1
+fi
+
+echo "All pre-commit checks passed!"
+exit 0
+
