@@ -23,7 +23,7 @@ async fn start_server() -> Child {
     let start = Instant::now();
     loop {
         if TcpStream::connect(SERVER_ADDR).await.is_ok() {
-            break; // Server is ready!
+            break;
         }
         if start.elapsed() > Duration::from_secs(5) {
             panic!(
