@@ -1,0 +1,49 @@
+name: Rust Chat CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+
+    - name: Build
+      run: cargo build --verbose
+
+    - name: Run Integration Test
+      run: |       
+        cargo run --bin server > server.log 2>&1 &
+        SERVER_PID=$!
+        
+        echo "Server started with PID $SERVER_PID. Waiting for it to initialize..."
+        sleep 5
+
+        # 2. Run the Client with piped input
+        echo -e "send Hello GitHub Actions\nleave" | cargo run --bin client -- --username Abhi --host 127.0.0.1 --port 8080
+        
+        CLIENT_EXIT_CODE=$?
+
+        kill $SERVER_PID
+        
+        if [ $CLIENT_EXIT_CODE -ne 0 ]; then
+          echo "Client failed!"
+          cat server.log
+          exit 1
+        fi
+
+        echo "Integration test passed!"
