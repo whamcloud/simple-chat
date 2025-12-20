@@ -34,7 +34,7 @@ jobs:
         sleep 5
 
         # 2. Run the Client with piped input
-        echo -e "send Hello GitHub Actions\nleave" | cargo run --bin client Abhi 127.0.0.1 8080
+        echo -e "send Hello GitHub Actions\nleave" | cargo run --bin client 127.0.0.1 8080 Abhi
         
         CLIENT_EXIT_CODE=$?
 
