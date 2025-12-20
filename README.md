@@ -13,6 +13,33 @@ Ensure you have Rust and Cargo installed:
 curl --proto '=https' --tlsv1.2 -sSf [https://sh.rustup.rs](https://sh.rustup.rs) | sh
 ```
 
+### 1. Start the Server
+The server listens on 127.0.0.1:8080 by default.
+
+```bash
+
+cargo run --bin server
+```
+
+### 2. Start a Client
+Open a new terminal window to connect a client. You must provide a username.
+
+```bash
+
+cargo run --bin client 127.0.0.1 8080 Abhi
+```
+
+Commands inside the client:
+
+Type send <MESSAGE> to broadcast a message.
+
+Type leave to disconnect and exit.
+
+
+```bash
+cargo run --bin client 127.0.0.1 8080 Molly
+```
+
 ## Summary
 
 You have been tasked with writing a simple asynchronous chat server and CLI
