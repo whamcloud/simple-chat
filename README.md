@@ -1,5 +1,18 @@
 # Simple Chat
 
+## Project Structure
+
+* `src/bin/server.rs`: The chat server implementation.
+* `src/bin/client.rs`: The CLI client implementation.
+
+## How to Run
+
+### Prerequisites
+Ensure you have Rust and Cargo installed:
+```bash
+curl --proto '=https' --tlsv1.2 -sSf [https://sh.rustup.rs](https://sh.rustup.rs) | sh
+```
+
 ## Summary
 
 You have been tasked with writing a simple asynchronous chat server and CLI
