@@ -1,0 +1,78 @@
+name: Rust CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Cache Cargo Registry
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Check Formatting
+        run: cargo fmt --all -- --check
+
+      - name: Lint with Clippy
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+      - name: Run Unit & Integration Tests
+        run: cargo test --workspace
+
+  smoke-test:
+    name: End-to-End Smoke Test
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build Release Binaries
+        run: cargo build --release --workspace
+
+      - name: Run Smoke Test Script
+        run: |
+          # 1. Start Server in background
+          ./target/release/chat-server &
+          SERVER_PID=$!
+          echo "Server started (PID: $SERVER_PID)"
+          sleep 3 # Wait for startup
+
+          # 2. Run Client (Alice)
+          # We echo commands into stdin to simulate user typing
+          # Sequence: Connect -> Send Msg -> Leave
+          (echo "send Hello World"; sleep 1; echo "leave") |./target/release/chat-client --username Alice --host 127.0.0.1 --port 8080 > alice_output.txt &
+          CLIENT_PID=$!
+          
+          wait $CLIENT_PID
+          
+          # 3. Analyze Output
+          cat alice_output.txt
+          
+          if grep -q "Welcome Alice" alice_output.txt; then
+            echo "✅ Handshake Success"
+          else
+            echo "❌ Handshake Failed"
+            kill $SERVER_PID
+            exit 1
+          fi
+
+          kill $SERVER_PID
