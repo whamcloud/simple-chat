@@ -9,28 +9,32 @@ repos:
     hooks:
       - id: rustfmt
         name: Rustfmt
-        entry: cargo fmt --all
+        entry: bash -c 'if [ -f Cargo.toml ]; then cargo fmt --all; else exit 0; fi'
         language: system
         pass_filenames: false
-        stages: [commit]
+        files: \.(rs|toml)$
+        stages: [pre-commit]
 
       - id: cargo-clippy
         name: Cargo clippy
-        entry: bash -c 'cargo clippy --all-targets --all-features -- -D warnings'
+        entry: bash -c 'if [ -f Cargo.toml ]; then cargo clippy --all-targets --all-features -- -D warnings; else exit 0; fi'
         language: system
         pass_filenames: false
-        stages: [commit]
+        files: \.(rs|toml)$
+        stages: [pre-commit]
 
       - id: cargo-build
         name: Cargo build
-        entry: cargo build --workspace --all-features
+        entry: bash -c 'if [ -f Cargo.toml ]; then cargo build --workspace --all-features; else exit 0; fi'
         language: system
         pass_filenames: false
-        stages: [commit]
+        files: \.(rs|toml)$
+        stages: [pre-commit]
 
       - id: cargo-test
         name: Cargo test
-        entry: cargo test --workspace --lib
+        entry: bash -c 'if [ -f Cargo.toml ]; then cargo test --workspace --lib; else exit 0; fi'
         language: system
         pass_filenames: false
-        stages: [push]
+        files: \.(rs|toml)$
+        stages: [pre-push]
