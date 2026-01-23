@@ -3,7 +3,7 @@
 ## Overview
 
 **Complete test coverage with 35+ automated tests across unit,
-integration, and E2E levels.**
+integration, E2E, and stress testing levels.**
 
 ---
 
@@ -56,9 +56,29 @@ integration, and E2E levels.**
 - Duplicate username rejection
 ```
 
+### Level 4: Stress Tests (4 tests)
+
+**Location:** `server/tests/stress_test.rs`  
+**Speed:** ~30 seconds  
+**Scope:** High throughput & concurrency
+
+```rust
+- 100 concurrent users connecting simultaneously
+- 10 clients sending 100 messages each (1000 total messages)
+- 200 rapid join/leave cycles with username reuse
+- Message ordering verification under load
+```
+
+**Manual Stress Test:** `./stress-test.sh`
+
+- Configurable client count and message volume
+- Tests real server/client binaries
+- Measures throughput (messages/second)
+- Verifies server stability under load
+
 #### Total Tests
 
-33 unit/integration tests + 2 E2E scenarios = 35+ tests
+33 unit/integration tests + 2 E2E scenarios + 4 stress tests = 39+ tests
 
 ---
 
@@ -78,6 +98,12 @@ cargo test -- --nocapture
 
 # Single test
 cargo test test_name
+
+# Stress tests (release mode for performance)
+cargo test --release --test stress_test
+
+# Manual stress test with custom config
+NUM_CLIENTS=100 MESSAGES_PER_CLIENT=20 ./stress-test.sh
 ```
 
 ### In CI
@@ -114,6 +140,20 @@ Tests run automatically on every push/PR via GitHub Actions.
 6. Clean up (always runs)
 
 **Result:** Complete system validated in ~2 minutes
+
+### Job 3: `stress-test` (Performance Verification)
+
+**Steps:**
+
+1. Run stress test suite (`cargo test --release --test stress_test`)
+   - 100 concurrent connections
+   - High message throughput
+   - Rapid join/leave cycles
+   - Message ordering under load
+2. Run stress test script (30 clients, 5 messages each)
+3. Verify server stability and performance
+
+**Result:** High throughput capability verified in ~1 minute
 
 ---
 
@@ -187,13 +227,13 @@ pre-commit install
 
 ## Test Coverage by Component
 
-| Component | Unit Tests | Integration Tests | E2E Tests |
-|-----------|-----------|-------------------|-----------|
-| Protocol parsing | 22 | 2 | - |
-| Room actor | 6 | 3 | - |
-| Server binary | - | - | 2 scenarios |
-| Client binary | - | - | 2 scenarios |
-| **Total** | **28** | **5** | **2 scenarios** |
+| Component | Unit Tests | Integration | E2E | Stress Tests |
+|-----------|-----------|-------------|-----|--------------|
+| Protocol parsing | 22 | 2 | - | - |
+| Room actor | 6 | 3 | - | 4 |
+| Server binary | - | - | 2 | 1 script |
+| Client binary | - | - | 2 | 1 script |
+| **Total** | **28** | **5** | **2** | **4+script** |
 
 ---
 
@@ -248,6 +288,8 @@ running 0 tests ← Normal!
 ```text
 ✅ 33 automated tests (unit + integration)
 ✅ 2 E2E scenarios (full system)
+✅ 4 stress tests (high throughput verification)
+✅ Manual stress test script (configurable load)
 ✅ 0 clippy warnings
 ✅ 100% formatted code
 ✅ 0 spelling errors
