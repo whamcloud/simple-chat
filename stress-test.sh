@@ -92,7 +92,11 @@ echo ""
 echo "=== Results ==="
 echo "Total time: ${ELAPSED}s"
 echo "Total messages sent: $((NUM_CLIENTS * MESSAGES_PER_CLIENT))"
-echo "Messages per second: $((NUM_CLIENTS * MESSAGES_PER_CLIENT / ELAPSED))"
+if [ $ELAPSED -gt 0 ]; then
+    echo "Messages per second: $((NUM_CLIENTS * MESSAGES_PER_CLIENT / ELAPSED))"
+else
+    echo "Messages per second: N/A (completed in < 1 second)"
+fi
 echo ""
 
 # Check server is still running
