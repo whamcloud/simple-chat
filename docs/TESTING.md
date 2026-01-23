@@ -99,7 +99,10 @@ cargo test -- --nocapture
 # Single test
 cargo test test_name
 
-# Stress tests (release mode for performance)
+# Stress tests (debug mode is fast enough, use release for benchmarking)
+cargo test --test stress_test
+
+# Stress tests in release mode (for accurate performance benchmarking)
 cargo test --release --test stress_test
 
 # Manual stress test with custom config
@@ -145,15 +148,16 @@ Tests run automatically on every push/PR via GitHub Actions.
 
 **Steps:**
 
-1. Run stress test suite (`cargo test --release --test stress_test`)
+1. Run stress test suite (`cargo test --test stress_test`)
    - 100 concurrent connections
    - High message throughput
    - Rapid join/leave cycles
    - Message ordering under load
+   - Note: Runs in debug mode to reuse builds from checks job (fast enough!)
 2. Run stress test script (30 clients, 5 messages each)
 3. Verify server stability and performance
 
-**Result:** High throughput capability verified in ~1 minute
+**Result:** High throughput capability verified in ~5-10 seconds
 
 ---
 
