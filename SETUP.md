@@ -111,8 +111,10 @@ Once all tools are installed:
 
 With pre-commit installed:
 
-- On every commit: code formatting, clippy checks, and build verification run automatically
+- On every commit: code formatting, clippy checks, and build verification run
+  automatically
 - On every push: tests run automatically
 - Markdown files are automatically linted and fixed
 
-If any check fails, the commit/push will be blocked until issues are resolved.
+If any check fails, the commit/push will be blocked until issues are
+resolved.
