@@ -1,15 +1,36 @@
 repos:
+  # General file hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-yaml
+        args: ['--unsafe']  # Allow custom YAML tags
+      - id: check-toml
+      - id: check-json
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+        args: ['--markdown-linebreak-ext=md']
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+      - id: check-added-large-files
+        args: ['--maxkb=500']
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  # Markdown linting
   - repo: https://github.com/igorshubovych/markdownlint-cli
     rev: v0.39.0
     hooks:
       - id: markdownlint
         args: ['--fix']
 
+  # Rust-specific checks
   - repo: local
     hooks:
       - id: rustfmt
-        name: Rustfmt
-        entry: bash -c 'if [ -f Cargo.toml ]; then cargo fmt --all; else exit 0; fi'
+        name: Rustfmt Check
+        entry: bash -c 'if [ -f Cargo.toml ]; then cargo fmt --all -- --check; else exit 0; fi'
         language: system
         pass_filenames: false
         files: \.(rs|toml)$
@@ -33,7 +54,7 @@ repos:
 
       - id: cargo-test
         name: Cargo test
-        entry: bash -c 'if [ -f Cargo.toml ]; then cargo test --workspace --lib; else exit 0; fi'
+        entry: bash -c 'if [ -f Cargo.toml ]; then cargo test --workspace --no-fail-fast; else exit 0; fi'
         language: system
         pass_filenames: false
         files: \.(rs|toml)$
