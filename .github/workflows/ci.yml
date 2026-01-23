@@ -178,20 +178,25 @@ jobs:
 
       - name: Test duplicate username rejection
         run: |
-          # Start alice
-          ./target/release/client --username alice > /dev/null 2>&1 &
+          # Start alice and keep it alive with stdin pipe
+          (sleep 10) | ./target/release/client --username alice > /dev/null 2>&1 &
           ALICE_PID=$!
-          sleep 1
+          sleep 2
 
           # Try to start another alice (should fail)
-          if echo "leave" | timeout 3 ./target/release/client --username alice 2>&1 | grep -q "already taken"; then
+          OUTPUT=$(timeout 3 ./target/release/client --username alice 2>&1 <<< "leave" || true)
+
+          if echo "$OUTPUT" | grep -q "already taken"; then
             echo "✅ Duplicate username correctly rejected"
+            echo "Error output: $OUTPUT"
           else
             echo "❌ Duplicate username was not rejected"
+            echo "Actual output: $OUTPUT"
             exit 1
           fi
 
           kill $ALICE_PID 2>/dev/null || true
+          wait $ALICE_PID 2>/dev/null || true
 
       - name: Stop server
         if: always()
