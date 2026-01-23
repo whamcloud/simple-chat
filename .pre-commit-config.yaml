@@ -25,6 +25,14 @@ repos:
       - id: markdownlint
         args: ['--fix']
 
+  # Spell checking
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.2.6
+    hooks:
+      - id: codespell
+        args: ['--write-changes']
+        exclude: ^(\.git/|\.idea/)
+
   # Rust-specific checks
   - repo: local
     hooks:
