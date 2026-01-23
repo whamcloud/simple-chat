@@ -218,3 +218,38 @@ jobs:
           echo ""
           echo "=== Bob Log ==="
           cat logs/bob.log 2>/dev/null || echo "No bob.log found"
+
+  stress-test:
+    name: Stress Test
+    runs-on: ubuntu-latest
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-stress-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Run stress tests
+        run: |
+          cargo test --release --test stress_test -- --nocapture
+
+      - name: Run stress test script
+        run: |
+          NUM_CLIENTS=30 MESSAGES_PER_CLIENT=5 CONCURRENT_LIMIT=15 ./stress-test.sh
+
+      - name: Show stress test logs on failure
+        if: failure()
+        run: |
+          echo "=== Stress Server Log ==="
+          cat logs/stress-server.log 2>/dev/null || echo "No stress-server.log found"
