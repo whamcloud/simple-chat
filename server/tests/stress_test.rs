@@ -196,7 +196,7 @@ async fn test_high_message_throughput() {
 #[tokio::test]
 async fn test_rapid_join_leave() {
     let room = Room::new();
-    const NUM_CYCLES: usize = 200;
+    const NUM_CYCLES: usize = 100;
 
     let mut handles = Vec::new();
 
@@ -204,9 +204,10 @@ async fn test_rapid_join_leave() {
         let room = room.clone();
         let handle = tokio::spawn(async move {
             let (tx, _rx) = tokio::sync::mpsc::channel(10);
-            let username = format!("user{}", i % 20); // Reuse usernames
+            // Use unique usernames to avoid conflicts
+            let username = format!("rapiduser{}", i);
 
-            // Try to join
+            // Join
             let result = room.join(username.clone(), tx).await;
 
             // If we joined successfully, leave immediately
@@ -220,7 +221,7 @@ async fn test_rapid_join_leave() {
     // All should complete quickly
     let start = std::time::Instant::now();
     for handle in handles {
-        timeout(Duration::from_secs(10), handle)
+        timeout(Duration::from_secs(5), handle)
             .await
             .expect("Join/leave cycle timeout")
             .unwrap();

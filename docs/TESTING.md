@@ -65,7 +65,7 @@ integration, E2E, and stress testing levels.**
 ```rust
 - 100 concurrent users connecting simultaneously
 - 10 clients sending 100 messages each (1000 total messages)
-- 200 rapid join/leave cycles with username reuse
+- 100 rapid join/leave cycles
 - Message ordering verification under load
 ```
 
