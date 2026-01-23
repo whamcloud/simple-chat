@@ -45,7 +45,17 @@ jobs:
       - name: Check markdown formatting
         run: markdownlint '**/*.md'
 
+      - name: Check if Rust project exists
+        id: check-rust
+        run: |
+          if [ -f "Cargo.toml" ]; then
+            echo "rust_project=true" >> $GITHUB_OUTPUT
+          else
+            echo "rust_project=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Set up Rust
+        if: steps.check-rust.outputs.rust_project == 'true'
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -53,6 +63,7 @@ jobs:
           profile: minimal
 
       - name: Cache cargo
+        if: steps.check-rust.outputs.rust_project == 'true'
         uses: actions/cache@v4
         with:
           path: |
@@ -64,13 +75,17 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Check formatting
+        if: steps.check-rust.outputs.rust_project == 'true'
         run: cargo fmt --all -- --check
 
       - name: Run clippy (deny warnings)
+        if: steps.check-rust.outputs.rust_project == 'true'
         run: cargo clippy --all-targets --all-features -- -D warnings
 
       - name: Build
+        if: steps.check-rust.outputs.rust_project == 'true'
         run: cargo build --workspace --all-features
 
       - name: Run tests
+        if: steps.check-rust.outputs.rust_project == 'true'
         run: cargo test --workspace --no-fail-fast
