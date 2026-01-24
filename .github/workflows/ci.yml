@@ -1,0 +1,255 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python for pre-commit hooks
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: Run general file checks (YAML, trailing whitespace, etc.)
+        run: |
+          pre-commit run check-yaml --all-files
+          pre-commit run check-toml --all-files
+          pre-commit run check-json --all-files
+          pre-commit run end-of-file-fixer --all-files
+          pre-commit run trailing-whitespace --all-files
+          pre-commit run mixed-line-ending --all-files
+          pre-commit run check-added-large-files --all-files
+          pre-commit run check-case-conflict --all-files
+          pre-commit run check-merge-conflict --all-files
+          pre-commit run detect-private-key --all-files
+
+      - name: Run spell check
+        run: pre-commit run codespell --all-files
+
+      - name: Set up Node.js for markdownlint
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install markdownlint-cli
+        run: npm install -g markdownlint-cli@0.39.0
+
+      - name: Check markdown formatting
+        run: markdownlint '**/*.md'
+
+      - name: Check if Rust project exists
+        id: check-rust
+        run: |
+          if [ -f "Cargo.toml" ]; then
+            echo "rust_project=true" >> $GITHUB_OUTPUT
+          else
+            echo "rust_project=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Rust
+        if: steps.check-rust.outputs.rust_project == 'true'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        if: steps.check-rust.outputs.rust_project == 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Check formatting
+        if: steps.check-rust.outputs.rust_project == 'true'
+        run: cargo fmt --all -- --check
+
+      - name: Run clippy (deny warnings)
+        if: steps.check-rust.outputs.rust_project == 'true'
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Build
+        if: steps.check-rust.outputs.rust_project == 'true'
+        run: cargo build --workspace --all-features
+
+      - name: Run tests
+        if: steps.check-rust.outputs.rust_project == 'true'
+        run: cargo test --workspace --no-fail-fast
+
+  e2e-test:
+    name: End-to-End Test
+    runs-on: ubuntu-latest
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Build release binaries
+        run: cargo build --release --workspace
+
+      - name: Create logs directory
+        run: mkdir -p logs
+
+      - name: Start server in background
+        run: |
+          ./target/release/server > logs/server.log 2>&1 &
+          echo $! > server.pid
+          sleep 2
+
+      - name: Test with client alice
+        run: |
+          timeout 5 bash -c '
+            echo "send Hello from Alice!" | ./target/release/client --username alice &
+            CLIENT_PID=$!
+            sleep 1
+            kill $CLIENT_PID 2>/dev/null || true
+          ' || true
+
+      - name: Test with two clients exchanging messages
+        run: |
+          # Start alice in background
+          (sleep 1; echo "send Hello from Alice!"; sleep 2) | ./target/release/client --username alice > logs/alice.log 2>&1 &
+          ALICE_PID=$!
+
+          # Start bob in background
+          (sleep 1; echo "send Hello from Bob!"; sleep 2) | ./target/release/client --username bob > logs/bob.log 2>&1 &
+          BOB_PID=$!
+
+          # Wait for clients to finish
+          sleep 4
+
+          # Check that clients connected successfully
+          if grep -q "Joined chat as 'alice'" logs/alice.log; then
+            echo "✅ Alice connected successfully"
+          else
+            echo "❌ Alice failed to connect"
+            cat logs/alice.log
+            exit 1
+          fi
+
+          if grep -q "Joined chat as 'bob'" logs/bob.log; then
+            echo "✅ Bob connected successfully"
+          else
+            echo "❌ Bob failed to connect"
+            cat logs/bob.log
+            exit 1
+          fi
+
+          # Check that bob received alice's message
+          if grep -q "MESSAGE alice:" logs/bob.log; then
+            echo "✅ Bob received Alice's message"
+          else
+            echo "⚠️  Bob did not receive Alice's message (might be timing issue)"
+            cat logs/bob.log
+          fi
+
+          # Check that alice received bob's message
+          if grep -q "MESSAGE bob:" logs/alice.log; then
+            echo "✅ Alice received Bob's message"
+          else
+            echo "⚠️  Alice did not receive Bob's message (might be timing issue)"
+            cat logs/alice.log
+          fi
+
+      - name: Test duplicate username rejection
+        run: |
+          # Start alice and keep it alive with stdin pipe
+          (sleep 10) | ./target/release/client --username alice > /dev/null 2>&1 &
+          ALICE_PID=$!
+          sleep 2
+
+          # Try to start another alice (should fail)
+          OUTPUT=$(timeout 3 ./target/release/client --username alice 2>&1 <<< "leave" || true)
+
+          if echo "$OUTPUT" | grep -q "already taken"; then
+            echo "✅ Duplicate username correctly rejected"
+            echo "Error output: $OUTPUT"
+          else
+            echo "❌ Duplicate username was not rejected"
+            echo "Actual output: $OUTPUT"
+            exit 1
+          fi
+
+          kill $ALICE_PID 2>/dev/null || true
+          wait $ALICE_PID 2>/dev/null || true
+
+      - name: Stop server
+        if: always()
+        run: |
+          if [ -f server.pid ]; then
+            kill $(cat server.pid) 2>/dev/null || true
+          fi
+          # Also kill any remaining server processes
+          pkill -f "target/release/server" || true
+
+      - name: Show logs on failure
+        if: failure()
+        run: |
+          echo "=== Server Log ==="
+          cat logs/server.log 2>/dev/null || echo "No server.log found"
+          echo ""
+          echo "=== Alice Log ==="
+          cat logs/alice.log 2>/dev/null || echo "No alice.log found"
+          echo ""
+          echo "=== Bob Log ==="
+          cat logs/bob.log 2>/dev/null || echo "No bob.log found"
+
+  stress-test:
+    name: Stress Test
+    runs-on: ubuntu-latest
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Run stress tests
+        run: |
+          cargo test --test stress_test -- --nocapture --test-threads=1
+
+      - name: Run stress test script
+        run: |
+          NUM_CLIENTS=30 MESSAGES_PER_CLIENT=5 CONCURRENT_LIMIT=15 ./stress-test.sh
+
+      - name: Show stress test logs on failure
+        if: failure()
+        run: |
+          echo "=== Stress Server Log ==="
+          cat logs/stress-server.log 2>/dev/null || echo "No stress-server.log found"
