@@ -1,0 +1,21 @@
+version: "2"
+
+run:
+  timeout: 3m
+
+linters:
+  default: none
+  enable:
+    - govet
+    - staticcheck
+    - ineffassign
+    - unused
+
+exclude-rules:
+  - path: ^gen/
+    linters:
+      - govet
+      - staticcheck
+      - ineffassign
+      - unused
+
