@@ -1,3 +1,4 @@
+use simple_chat::protocol::{ClientMessage, ServerMessage};
 use std::{collections::HashMap, sync::Arc};
 
 use tokio::{
@@ -32,15 +33,42 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 
-async fn handle_client(stream: TcpStream, _users: UserMap) -> anyhow::Result<()> {
-    let (_tx, mut rx) = mpsc::unbounded_channel::<String>();
+async fn handle_client(stream: TcpStream, users: UserMap) -> anyhow::Result<()> {
+    let (tx, mut rx) = mpsc::unbounded_channel::<String>();
     let (reader, mut writer) = stream.into_split();
     let reader = BufReader::new(reader);
     let mut lines = reader.lines();
 
+    let mut username: Option<String> = None;
+
     while let Some(line) = lines.next_line().await? {
-        println!("received: {}", line);
+        let command: ClientMessage = match serde_json::from_str(&line) {
+            Ok(cmd) => cmd,
+            Err(_) => continue,
+        };
+
+        match command {
+            ClientMessage::Join { username: name } => {
+                let mut map = users.write().await;
+
+                if map.contains_key(&name) {
+                    let error = ServerMessage::Error {
+                        reason: "username already taken".into(),
+                    };
+
+                    let _ = tx.send(serde_json::to_string(&error)?);
+                } else {
+                    map.insert(name.clone(), tx.clone());
+                    username = Some(name);
+
+                    println!("user joined");
+                }
+            }
+
+            _ => {}
+        }
     }
+
     tokio::spawn(async move {
         while let Some(msg) = rx.recv().await {
             use tokio::io::AsyncWriteExt;
