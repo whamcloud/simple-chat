@@ -63,7 +63,7 @@ async fn main() -> anyhow::Result<()> {
 
     while let Some(line) = stdin_lines.next_line().await? {
         if let Some(stripped) = line.strip_prefix("send ") {
-    let message = stripped.to_string();
+            let message = stripped.to_string();
 
             let cmd = ClientEvent::Send { message };
 

@@ -1,4 +1,3 @@
-use serde_json;
 use simple_chat::protocol::{ClientEvent, ServerEvent};
 
 #[test]
