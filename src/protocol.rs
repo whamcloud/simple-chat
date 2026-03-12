@@ -1,14 +1,14 @@
-use serde::{Deserialize, Serialize};
+use serde::{Serialize, Deserialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub enum ClientEvent {
     Join { username: String },
     Send { message: String },
     Leave,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum ServerEvent {
-    Message { username: String, message: String },
+    Chat { user: String, message: String },
     Error { reason: String },
 }

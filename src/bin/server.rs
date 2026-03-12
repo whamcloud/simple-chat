@@ -42,33 +42,66 @@ async fn handle_client(stream: TcpStream, users: UserMap) -> anyhow::Result<()> 
     let mut username: Option<String> = None;
 
     while let Some(line) = lines.next_line().await? {
+        let trimmed = line.trim().to_string();
+
+        if trimmed.is_empty() {
+            continue;
+        }
+
         let command: ClientEvent = match serde_json::from_str(&line) {
             Ok(cmd) => cmd,
-            Err(_) => continue,
+            Err(e) => {
+                println!("failed to parse message: {}", e);
+                continue;
+            }
         };
 
         match command {
             ClientEvent::Join { username: name } => {
                 let mut map = users.write().await;
-
                 if map.contains_key(&name) {
-                    let error = ServerEvent::Error {
+                    println!("username {} already taken", name);
+
+                    let event = ServerEvent::Error {
                         reason: "username already taken".into(),
                     };
 
-                    let _ = tx.send(serde_json::to_string(&error)?);
+                    if let Ok(msg) = serde_json::to_string(&event) {
+                        let _ = tx.send(msg);
+                    }
                 } else {
                     map.insert(name.clone(), tx.clone());
-                    username = Some(name);
+                    username = Some(name.clone());
 
-                    println!("user joined");
+                    println!("{} joined the chat", name);
                 }
             }
 
-            _ => {}
+            ClientEvent::Send { message } => {
+                if let Some(ref user) = username {
+                    println!("{}: {}", user, message);
+                    let users_map = users.read().await;
+
+                    for (name, client_tx) in users_map.iter() {
+                        if name != user {
+                            let event = ServerEvent::Chat {
+                                user: user.clone(),
+                                message: message.clone(),
+                            };
+
+                            if let Ok(msg) = serde_json::to_string(&event) {
+                                let _ = client_tx.send(msg);
+                            }
+                        }
+                    }
+                }
+            }
+
+            ClientEvent::Leave => {
+                break;
+            }
         }
     }
-
     tokio::spawn(async move {
         while let Some(msg) = rx.recv().await {
             use tokio::io::AsyncWriteExt;
