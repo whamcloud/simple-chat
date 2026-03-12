@@ -61,12 +61,9 @@ async fn main() -> anyhow::Result<()> {
     let stdin = BufReader::new(tokio::io::stdin());
     let mut stdin_lines = stdin.lines();
 
-    
     while let Some(line) = stdin_lines.next_line().await? {
-
-        if line.starts_with("send ") {
-
-            let message = line[5..].to_string();
+        if let Some(stripped) = line.strip_prefix("send ") {
+    let message = stripped.to_string();
 
             let cmd = ClientEvent::Send { message };
 
@@ -74,9 +71,7 @@ async fn main() -> anyhow::Result<()> {
 
             writer.write_all(msg.as_bytes()).await?;
             writer.write_all(b"\n").await?;
-
         } else if line == "leave" {
-
             let cmd = ClientEvent::Leave;
 
             let msg = serde_json::to_string(&cmd)?;
@@ -85,7 +80,6 @@ async fn main() -> anyhow::Result<()> {
             writer.write_all(b"\n").await?;
 
             break;
-
         } else {
             println!("Commands:");
             println!("send <message>");
