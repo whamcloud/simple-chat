@@ -1,4 +1,4 @@
-use simple_chat::protocol::{ClientMessage, ServerMessage};
+use simple_chat::protocol::{ClientEvent, ServerEvent};
 use std::{collections::HashMap, sync::Arc};
 
 use tokio::{
@@ -42,17 +42,17 @@ async fn handle_client(stream: TcpStream, users: UserMap) -> anyhow::Result<()> 
     let mut username: Option<String> = None;
 
     while let Some(line) = lines.next_line().await? {
-        let command: ClientMessage = match serde_json::from_str(&line) {
+        let command: ClientEvent = match serde_json::from_str(&line) {
             Ok(cmd) => cmd,
             Err(_) => continue,
         };
 
         match command {
-            ClientMessage::Join { username: name } => {
+            ClientEvent::Join { username: name } => {
                 let mut map = users.write().await;
 
                 if map.contains_key(&name) {
-                    let error = ServerMessage::Error {
+                    let error = ServerEvent::Error {
                         reason: "username already taken".into(),
                     };
 
