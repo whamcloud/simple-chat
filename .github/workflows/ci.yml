@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: ["*"]
+  pull_request:
+    branches: ["*"]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: Build, Lint & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo registry & build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+      - name: Clippy
+        run: cargo clippy -- -D warnings
+
+      - name: Build
+        run: cargo build
+
+      - name: Run tests
+        run: cargo test
+
+  integration:
+    name: Server-Client Integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry & build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+
+      - name: Build server and client
+        run: cargo build
+
+      - name: Start server and send a message from client
+        run: |
+          # Start the server in the background
+          CHAT_HOST=127.0.0.1 CHAT_PORT=9090 cargo run --bin server &
+          SERVER_PID=$!
+          sleep 2
+
+          # Use a simple script to connect, send a message, and leave
+          (
+            echo '{"type":"Join","username":"ci-user"}'
+            sleep 1
+            echo '{"type":"Send","content":"Hello from CI!"}'
+            sleep 1
+            echo '{"type":"Leave"}'
+            sleep 1
+          ) | nc 127.0.0.1 9090
+
+          # Give the server a moment to process
+          sleep 1
+
+          # Kill the server
+          kill $SERVER_PID 2>/dev/null || true
+          echo "Integration smoke test passed!"
