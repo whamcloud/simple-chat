@@ -1,0 +1,28 @@
+#!/bin/sh
+#
+# Pre-commit hook: ensures code is formatted, compiles, and passes clippy.
+
+set -e
+
+echo "Running cargo fmt --check..."
+cargo fmt --check
+if [ $? -ne 0 ]; then
+    echo "Error: Code is not formatted. Run 'cargo fmt' before committing."
+    exit 1
+fi
+
+echo "Running cargo clippy..."
+cargo clippy -- -D warnings
+if [ $? -ne 0 ]; then
+    echo "Error: Clippy found warnings. Fix them before committing."
+    exit 1
+fi
+
+echo "Running cargo build..."
+cargo build
+if [ $? -ne 0 ]; then
+    echo "Error: Build failed. Fix compilation errors before committing."
+    exit 1
+fi
+
+echo "All pre-commit checks passed!"
