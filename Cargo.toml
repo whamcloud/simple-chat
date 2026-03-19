@@ -1,0 +1,17 @@
+[package]
+name = "simple-chat"
+version = "0.1.0"
+edition = "2024"
+
+[workspace]
+members = [
+    "server",
+    "client",
+]
+
+[workspace.dependencies]
+tokio = { version = "1.50.0", features = ["full"] }
+rand = "0.10.0"
+clap = { version = "4.5.31", features = ["derive"] }
+
+[dependencies]
