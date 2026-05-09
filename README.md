@@ -1,71 +1,59 @@
-# Simple Chat
+# simple-chat
 
-## Summary
+A single-room chat server and CLI client. The server broadcasts each message to everyone except the sender. Usernames must be unique.
 
-You have been tasked with writing a simple asynchronous chat server and CLI
-client.
+## Build
 
-Since this is a simple chat server there is only a single room. Users may
-freely join or leave this room. They may also send messages to the room, which
-will be sent to all connected users minus the sender.
+```bash
+cargo build
+```
 
-Even though the server is simple, it has high throughput. Because of this, all
-code should be non-blocking for maximum concurrency.
+## Run
 
-The following is a rough specification of the server and client.
+Start the server:
 
-## Server
+```bash
+cargo run -p server
+```
 
-* The servers job is to manage users.
-* It should be able to receive a message from a user and process it.
-* The user may wish to join, leave or send a message through the chat server.
-* Any other user who is currently connected should get the message sent to
-them.
-* The user who sent the message should not get the message.
-* When a user sends a leave message, or disconnects their client, the server
-should no longer send messages to them, and do any internal bookkeeping to 
-clean up.
-* Username's should be unique.
-* The server should be able to support many users without a large delay
-* The server should be able to support many users with a small memory footprint
+By default it listens on `0.0.0.0:3000`. Override with flags or env vars:
 
+```bash
+cargo run -p server -- --host 127.0.0.1 --port 4000
+# or
+CHAT_HOST=127.0.0.1 CHAT_PORT=4000 cargo run -p server
+```
 
-## Client
+Connect a client (username is required):
 
-* The client is an async CLI program.
-* It is responsible for sending messages to the server and displaying any
-messages from the server.
-* The client should accept environment variables or command line arguments
-indicating the host and port where the server is listening. It should also
-accept a username that will be used as an identifier on the server.
-* The client should automatically connect to the chat server upon 
-initialization using the specified host and port.
-* The client should display an interactive command prompt. The prompt should 
-be able to handle the following inputs:
-    * `send <MSG>`  where `<MSG>`  is the message that should be sent to the 
-    server
-    * `leave` this will disconnect the client from the server and exit the CLI.
+```bash
+cargo run -p client -- --username alice
+# or
+CHAT_USERNAME=alice cargo run -p client
+```
 
+The client defaults to `127.0.0.1:3000`. To point it elsewhere:
 
-## Additional Requirements
+```bash
+cargo run -p client -- --username alice --host 192.168.1.5 --port 4000
+```
 
-* Your source should contain both unit and integration tests where necessary.
-* All code must be formatted using the standard formatting tool.
-* Code must compile without clippy errors.
+## Chat
 
-## Submission
+Once connected, you'll see a `>` prompt.
 
-Please fork this repository to your own GitHub account and submit a pull
-request to your own repository. Your pull request should include a
-video of a working demo at the top along with any other key information
-that should be highlighted. A link to the pull request can be submitted when
-it is ready for review.
+| Input | What it does |
+|---|---|
+| `send hello everyone` | Sends a message to the room |
+| `leave` | Disconnects and exits |
+| `Ctrl+C` | Same as leave |
 
-## Bonus
+Join/leave notifications for other users are printed automatically as they happen. You won't see your own messages echoed back.
 
-* Include a pre-commit hook that will ensure that all code is formatted, compiles
-without error, and is free of clippy errors.
-* Create a GitHub Action that will launch your chat server and attempt to 
-send a message to the server from the client. Make sure that niether the server
-or client exit with a failure. This action should be run anytime new code
-is pushed to a branch or landed on the main branch.
+If the username you picked is already taken, the server will reject the connection immediately.
+
+## Tests
+
+```bash
+cargo test
+```
